@@ -1,6 +1,7 @@
 package scrapers
 
 import (
+	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/gorilla/feeds"
@@ -10,23 +11,27 @@ import (
 	"time"
 )
 
+var client = http.Client{
+	Timeout: 8 * time.Second,
+}
+
 func ScrapeFreeGeek() ([]*feeds.Item, error) {
 	var feedItems []*feeds.Item
 
 	// Request the HTML page.
-	res, err := http.Get("https://www.freegeektwincities.org/cables")
+	res, err := client.Get("https://www.freegeektwincities.org/cables")
 	if err != nil {
-		log.Fatalf("[freegeek] error getting page: %v", err)
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		log.Fatalf("[freegeek] bad status code: %d %s", res.StatusCode, res.Status)
+		return nil, errors.New(fmt.Sprintf("bad status code: %d %s", res.StatusCode, res.Status))
 	}
 
 	// Load the HTML document
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	// Find the review items

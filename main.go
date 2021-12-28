@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"github.com/gorilla/feeds"
 	"github.com/gorilla/mux"
@@ -31,8 +32,10 @@ func main() {
 			freeGeekItems, err := scrapers.ScrapeFreeGeek()
 			if err != nil {
 				log.Printf("[freegeek] got error when scraping: %v", err)
+				data.GetManager().SetError(err)
 			} else {
 				log.Printf("[freegeek] scrape successful")
+				data.GetManager().ClearError()
 				data.GetManager().CurrentFeed.Items = freeGeekItems
 			}
 			time.Sleep(time.Duration(scrapeInterval) * time.Minute)
@@ -41,6 +44,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/rss", RSSHandler)
+	r.HandleFunc("/health", HealthHandler)
 
 	srv := &http.Server{
 		Handler:      r,
@@ -51,11 +55,32 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	data.GetManager().Lock.Lock()
+	e := data.GetManager().Error
+	data.GetManager().Lock.Unlock()
+
+	if e == nil {
+		w.WriteHeader(200)
+		w.Write([]byte("Ok"))
+		return
+	}
+	marshaled, err := json.Marshal(e)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.WriteHeader(400)
+	w.Write(marshaled)
+}
+
 func RSSHandler(w http.ResponseWriter, r *http.Request) {
 	manager := data.GetManager()
 	rss, err := manager.CurrentFeed.ToRss()
 	if err != nil {
-		panic(err)
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
 	}
 	w.Header().Set("Content-Type", "application/rss+xml")
 	w.WriteHeader(http.StatusOK)
