@@ -25,7 +25,8 @@ func (l MarketplaceListing) String() string {
 		l.title, l.location, l.price, l.sold, l.imageUrl, l.listingUrl)
 }
 
-func ScrapeFacebookMarketplace(url string) {
+func scrapeHeadlessly(url string) ([]*MarketplaceListing, error) {
+	var listings []*MarketplaceListing
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
 		chromedp.Flag("blink-settings", "imagesEnabled=false"),
@@ -38,7 +39,7 @@ func ScrapeFacebookMarketplace(url string) {
 
 	pageHtml := ""
 
-	fmt.Println("Navigating and scraping...")
+	fmt.Println("[fb-marketplace] Navigating and scraping...")
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(`div[role=main]`, chromedp.NodeVisible),
@@ -55,18 +56,18 @@ func ScrapeFacebookMarketplace(url string) {
 		chromedp.InnerHTML(`div[role=main]`, &pageHtml, chromedp.NodeVisible),
 	)
 	if err != nil {
-		log.Fatal(err)
+		return listings, err
 	}
 
-	fmt.Println("Parsing HTML...")
+	fmt.Println("[fb-marketplace] Parsing HTML...")
 
 	content, err := goquery.NewDocumentFromReader(strings.NewReader(pageHtml))
 	if err != nil {
-		panic(err)
+		return listings, err
 	}
 
 	posts := content.Find("a[role=link]")
-	log.Printf("[facebook] found %v listings", posts.Length())
+	log.Printf("[fb-marketplace] found %v listings", posts.Length())
 	posts.Each(func(i int, s *goquery.Selection) {
 		var listing MarketplaceListing
 		listing.sold = false
@@ -108,6 +109,8 @@ func ScrapeFacebookMarketplace(url string) {
 				listing.price = item
 			}
 		}
+		listings = append(listings, &listing)
 	})
 
+	return listings, nil
 }
