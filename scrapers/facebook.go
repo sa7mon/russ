@@ -1,4 +1,4 @@
-package main
+package scrapers
 
 import (
 	"context"
@@ -25,13 +25,8 @@ func (l MarketplaceListing) String() string {
 		l.title, l.location, l.price, l.sold, l.imageUrl, l.listingUrl)
 }
 
-func main() {
-	// create context
-	//ctx, cancel := chromedp.NewContext(context.Background(), chromedp.Headless())
-	//defer cancel()
-
+func ScrapeFacebookMarketplace(url string) {
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		// to see what happen
 		chromedp.Flag("headless", true),
 		chromedp.Flag("blink-settings", "imagesEnabled=false"),
 		chromedp.WindowSize(1920, 1080),
@@ -41,21 +36,12 @@ func main() {
 	ctx, cancel = chromedp.NewContext(ctx)
 	defer cancel()
 
-	// run task list
-	//var res string
-	var pageHtml string
-	pageHtml = ""
+	pageHtml := ""
+
 	fmt.Println("Navigating and scraping...")
 	err := chromedp.Run(ctx,
-		chromedp.Navigate(`https://www.facebook.com/marketplace/109658472394519/search/?query=keyboard`),
+		chromedp.Navigate(url),
 		chromedp.WaitVisible(`div[role=main]`, chromedp.NodeVisible),
-		//chromedp.Sleep(5*time.Second),
-		//chromedp.ScrollIntoView(`#ssrb_root_end`, chromedp.BySearch),
-		//chromedp.Sleep(1*time.Second),
-		//chromedp.ScrollIntoView(`#ssrb_root_end`, chromedp.BySearch),
-		//chromedp.Sleep(1*time.Second),
-		//chromedp.Evaluate("document.querySelector('div[role=main]').scrollIntoViewIfNeeded(true)", nil),
-
 		chromedp.KeyEvent(kb.End),
 		chromedp.Sleep(2*time.Second),
 		chromedp.KeyEvent(kb.End),
@@ -66,10 +52,6 @@ func main() {
 		chromedp.Sleep(2*time.Second),
 		chromedp.KeyEvent(kb.End),
 		chromedp.Sleep(2*time.Second),
-
-		//chromedp.SendKeys(`div[role=main]`, kb.End, chromedp.NodeVisible),
-		//chromedp.Value(`#input1`, val1, chromedp.ByID),
-		//chromedp.KeyEvent(kb.End)
 		chromedp.InnerHTML(`div[role=main]`, &pageHtml, chromedp.NodeVisible),
 	)
 	if err != nil {
@@ -82,8 +64,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	//fmt.Println(pageHtml)
 
 	posts := content.Find("a[role=link]")
 	log.Printf("[facebook] found %v listings", posts.Length())
@@ -128,8 +108,6 @@ func main() {
 				listing.price = item
 			}
 		}
-
-		//fmt.Println(listing)
 	})
 
 }
